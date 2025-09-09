@@ -1,24 +1,28 @@
 import { useMemo } from 'react';
 import { usePublicClient, useWalletClient } from 'wagmi';
-import { ethers } from 'ethers';
 
+// Simplified adapter without ethers dependency
 export function useEthersProvider() {
   const publicClient = usePublicClient();
   
   return useMemo(() => {
     if (!publicClient) return null;
     
-    return new ethers.BrowserProvider(window.ethereum);
+    // Return a simplified provider object for compatibility
+    return {
+      getNetwork: () => publicClient.chain,
+      getSigner: () => null, // Will be handled by wagmi
+    };
   }, [publicClient]);
 }
 
 export function useEthersSigner() {
   const { data: walletClient } = useWalletClient();
   
-  return useMemo(async () => {
+  return useMemo(() => {
     if (!walletClient) return null;
     
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    return provider.getSigner();
+    // Return wallet client directly for compatibility
+    return walletClient;
   }, [walletClient]);
 }

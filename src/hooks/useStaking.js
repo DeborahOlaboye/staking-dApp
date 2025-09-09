@@ -6,10 +6,8 @@ import {
     useWriteContract,
     useReadContract,
 } from "wagmi";
-import { ethers } from "ethers";
-import { useEthersProvider } from "./ethersAdapter";
 import { toast } from "sonner";
-import { parseEther } from "viem";
+import { parseEther, formatEther } from "viem";
 import { stakingAbi } from "../config/ABI";
 import { erc20Abi } from "../config/ERC20";
 
@@ -36,7 +34,6 @@ const useStaking = () => {
     const publicClient = usePublicClient();
     const { data: walletClient } = useWalletClient();
     const { address } = useAccount();
-    const ethersProvider = useEthersProvider();
     const { writeContractAsync } = useWriteContract();
 
     // Get staking token address
@@ -132,96 +129,116 @@ const useStaking = () => {
         }
     }, [publicClient]);
 
-    // Initial data fetch
+
     useEffect(() => {
         fetchUserStakingData();
         fetchProtocolStats();
     }, [fetchUserStakingData, fetchProtocolStats]);
 
-    // Real-time event listeners using ethers
     useEffect(() => {
-        if (!ethersProvider || !address) return;
+        if (!publicClient || !address) return;
 
-        const stakingContract = new ethers.Contract(
-            CONTRACT_ADDRESS,
-            stakingAbi,
-            ethersProvider
-        );
-
-        const onStaked = (user, amount, timestamp, newTotalStaked, currentRewardRate) => {
-            if (user.toLowerCase() === address.toLowerCase()) {
-                toast.success('Staking successful!', {
-                    description: `Successfully staked ${ethers.formatEther(amount)} tokens`,
+        const unsubscribeStaked = publicClient.watchContractEvent({
+            address: CONTRACT_ADDRESS,
+            abi: stakingAbi,
+            eventName: 'Staked',
+            onLogs: (logs) => {
+                logs.forEach((log) => {
+                    if (log.args.user?.toLowerCase() === address.toLowerCase()) {
+                        toast.success('Staking successful!', {
+                            description: `Successfully staked ${formatEther(log.args.amount)} tokens`,
+                        });
+                        fetchUserStakingData();
+                        fetchProtocolStats();
+                    }
                 });
-                fetchUserStakingData();
-                fetchProtocolStats();
-            }
-        };
+            },
+        });
 
-        const onWithdrawn = (user, amount, timestamp, newTotalStaked, currentRewardRate, rewardsAccrued) => {
-            if (user.toLowerCase() === address.toLowerCase()) {
-                toast.success('Withdrawal successful!', {
-                    description: `Successfully withdrew ${ethers.formatEther(amount)} tokens with ${ethers.formatEther(rewardsAccrued)} rewards`,
+        const unsubscribeWithdrawn = publicClient.watchContractEvent({
+            address: CONTRACT_ADDRESS,
+            abi: stakingAbi,
+            eventName: 'Withdrawn',
+            onLogs: (logs) => {
+                logs.forEach((log) => {
+                    if (log.args.user?.toLowerCase() === address.toLowerCase()) {
+                        toast.success('Withdrawal successful!', {
+                            description: `Successfully withdrew ${formatEther(log.args.amount)} tokens with ${formatEther(log.args.rewardsAccrued || 0n)} rewards`,
+                        });
+                        fetchUserStakingData();
+                        fetchProtocolStats();
+                    }
                 });
-                fetchUserStakingData();
-                fetchProtocolStats();
-            }
-        };
+            },
+        });
 
-        const onRewardsClaimed = (user, amount, timestamp, newPendingRewards, totalStaked) => {
-            if (user.toLowerCase() === address.toLowerCase()) {
-                toast.success('Rewards claimed!', {
-                    description: `Successfully claimed ${ethers.formatEther(amount)} tokens`,
+        const unsubscribeRewardsClaimed = publicClient.watchContractEvent({
+            address: CONTRACT_ADDRESS,
+            abi: stakingAbi,
+            eventName: 'RewardsClaimed',
+            onLogs: (logs) => {
+                logs.forEach((log) => {
+                    if (log.args.user?.toLowerCase() === address.toLowerCase()) {
+                        toast.success('Rewards claimed!', {
+                            description: `Successfully claimed ${formatEther(log.args.amount)} tokens`,
+                        });
+                        fetchUserStakingData();
+                    }
                 });
-                fetchUserStakingData();
-            }
-        };
+            },
+        });
 
-        const onEmergencyWithdrawn = (user, amount, penalty, timestamp, newTotalStaked) => {
-            if (user.toLowerCase() === address.toLowerCase()) {
-                toast.warning('Emergency withdrawal completed', {
-                    description: `Withdrew ${ethers.formatEther(amount)} tokens with ${ethers.formatEther(penalty)} penalty`,
+        const unsubscribeEmergencyWithdrawn = publicClient.watchContractEvent({
+            address: CONTRACT_ADDRESS,
+            abi: stakingAbi,
+            eventName: 'EmergencyWithdrawn',
+            onLogs: (logs) => {
+                logs.forEach((log) => {
+                    if (log.args.user?.toLowerCase() === address.toLowerCase()) {
+                        toast.warning('Emergency withdrawal completed', {
+                            description: `Withdrew ${formatEther(log.args.amount)} tokens with ${formatEther(log.args.penalty || 0n)} penalty`,
+                        });
+                        fetchUserStakingData();
+                        fetchProtocolStats();
+                    }
                 });
-                fetchUserStakingData();
-                fetchProtocolStats();
-            }
-        };
+            },
+        });
 
-        const onRewardRateUpdated = (oldRate, newRate, timestamp, totalStaked) => {
-            toast.info('Reward rate updated', {
-                description: `New rate: ${(Number(newRate) / 100).toFixed(2)}%`,
-            });
-            fetchProtocolStats();
-        };
-
-        // Subscribe to events
-        stakingContract.on('Staked', onStaked);
-        stakingContract.on('Withdrawn', onWithdrawn);
-        stakingContract.on('RewardsClaimed', onRewardsClaimed);
-        stakingContract.on('EmergencyWithdrawn', onEmergencyWithdrawn);
-        stakingContract.on('RewardRateUpdated', onRewardRateUpdated);
+        const unsubscribeRewardRateUpdated = publicClient.watchContractEvent({
+            address: CONTRACT_ADDRESS,
+            abi: stakingAbi,
+            eventName: 'RewardRateUpdated',
+            onLogs: (logs) => {
+                logs.forEach((log) => {
+                    toast.info('Reward rate updated', {
+                        description: `New rate: ${(Number(log.args.newRate) / 100).toFixed(2)}%`,
+                    });
+                    fetchProtocolStats();
+                });
+            },
+        });
 
         return () => {
-            stakingContract.off('Staked', onStaked);
-            stakingContract.off('Withdrawn', onWithdrawn);
-            stakingContract.off('RewardsClaimed', onRewardsClaimed);
-            stakingContract.off('EmergencyWithdrawn', onEmergencyWithdrawn);
-            stakingContract.off('RewardRateUpdated', onRewardRateUpdated);
+            unsubscribeStaked();
+            unsubscribeWithdrawn();
+            unsubscribeRewardsClaimed();
+            unsubscribeEmergencyWithdrawn();
+            unsubscribeRewardRateUpdated();
         };
-    }, [address, ethersProvider, fetchUserStakingData, fetchProtocolStats]);
+    }, [address, publicClient, fetchUserStakingData, fetchProtocolStats]);
 
-    // Periodic refresh for pending rewards
+
     useEffect(() => {
         if (!address) return;
 
         const interval = setInterval(() => {
             fetchUserStakingData();
-        }, 30000); // Refresh every 30 seconds
-
+        }, 30000); 
         return () => clearInterval(interval);
     }, [address, fetchUserStakingData]);
 
-    // Approve tokens for staking
+ 
     const approveTokens = useCallback(
         async (amount) => {
             if (!address || !walletClient) {
@@ -274,7 +291,7 @@ const useStaking = () => {
         [address, walletClient, userStakingData.tokenBalance, stakingToken, writeContractAsync, publicClient, fetchUserStakingData]
     );
 
-    // Stake tokens
+  
     const stakeTokens = useCallback(
         async (amount) => {
             if (!address || !walletClient) {
@@ -329,7 +346,6 @@ const useStaking = () => {
         [address, walletClient, userStakingData.tokenBalance, userStakingData.tokenAllowance, writeContractAsync, publicClient]
     );
 
-    // Withdraw tokens
     const withdrawTokens = useCallback(
         async (amount) => {
             if (!address || !walletClient) {
@@ -379,7 +395,6 @@ const useStaking = () => {
         [address, walletClient, userStakingData.canWithdraw, writeContractAsync, publicClient]
     );
 
-    // Claim rewards
     const claimRewards = useCallback(
         async () => {
             if (!address || !walletClient) {
@@ -414,7 +429,7 @@ const useStaking = () => {
         [address, walletClient, writeContractAsync, publicClient]
     );
 
-    // Emergency withdraw
+  
     const emergencyWithdraw = useCallback(
         async () => {
             if (!address || !walletClient) {
@@ -450,19 +465,18 @@ const useStaking = () => {
     );
 
     return {
-        // State
         userStakingData,
         protocolStats,
         isLoading,
         
-        // Actions
+     
         approveTokens,
         stakeTokens,
         withdrawTokens,
         claimRewards,
         emergencyWithdraw,
         
-        // Utilities
+     
         refreshData: fetchUserStakingData,
         refreshStats: fetchProtocolStats,
     };
