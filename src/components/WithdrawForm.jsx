@@ -11,6 +11,7 @@ const WithdrawForm = ({
   handleWithdraw, 
   canWithdraw 
 }) => {
+  console.log('WithdrawForm render - canWithdraw:', canWithdraw, 'isConnected:', isConnected);
   return (
     <Card>
       <CardHeader>
@@ -35,7 +36,12 @@ const WithdrawForm = ({
             variant="secondary"
             disabled={!isConnected || !canWithdraw}
           >
-            {!isConnected ? 'Connect Wallet to Withdraw' : 'Withdraw'}
+            {!isConnected 
+              ? 'Connect Wallet to Withdraw' 
+              : !canWithdraw 
+                ? 'Cannot Withdraw (Lock Active)' 
+                : 'Withdraw'
+            }
           </Button>
         </div>
       </CardContent>
