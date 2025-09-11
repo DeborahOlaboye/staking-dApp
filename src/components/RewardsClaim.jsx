@@ -16,7 +16,7 @@ const RewardsClaim = ({ isConnected, pendingRewards, handleClaim }) => {
           className="w-full"
           disabled={!isConnected}
         >
-          {!isConnected ? 'Connect Wallet to Claim' : `Claim ${formatEther(pendingRewards || 0n)} Tokens`}
+          {!isConnected ? 'Connect Wallet to Claim' : `Claim ${formatEther(pendingRewards || 0n)} STK`}
         </Button>
       </CardContent>
     </Card>

@@ -54,7 +54,6 @@ const useStaking = () => {
                     chainId: publicClient.chain?.id
                 });
 
-                // First, verify the contract exists by checking if it has code
                 const contractCode = await publicClient.getBytecode({
                     address: stakingContractConfig.address
                 });
@@ -65,7 +64,6 @@ const useStaking = () => {
 
                 console.log('Contract exists, bytecode length:', contractCode.length);
 
-                // Get staking token address with better error handling
                 let stakingTokenAddress;
                 try {
                     stakingTokenAddress = await publicClient.readContract({
@@ -76,13 +74,11 @@ const useStaking = () => {
                     setStakingToken(stakingTokenAddress);
                 } catch (tokenError) {
                     console.error('Failed to get staking token address:', tokenError);
-                    // Use fallback token address if stakingToken() fails
                     stakingTokenAddress = TOKEN_ADDRESS;
                     setStakingToken(TOKEN_ADDRESS);
                     console.log('Using fallback token address:', TOKEN_ADDRESS);
                 }
 
-                // Fetch protocol statistics first (these don't require user address)
                 const [apr, currentRewardRate, totalStaked, totalRewards, minLockDuration, aprReductionPerThousand, emergencyWithdrawPenalty, totalRewardsDistributed] = await Promise.allSettled([
                     publicClient.readContract({
                         ...stakingContractConfig,
@@ -112,7 +108,6 @@ const useStaking = () => {
                         ...stakingContractConfig,
                         functionName: 'emergencyWithdrawPenalty',
                     }),
-                    // Try alternative function name for total rewards distributed
                     publicClient.readContract({
                         ...stakingContractConfig,
                         functionName: 'totalRewardsDistributed',
@@ -121,7 +116,6 @@ const useStaking = () => {
 
                 console.log('Protocol stats results:', { apr, currentRewardRate, totalStaked, totalRewards });
 
-                // Log individual protocol stats for debugging
                 console.log('Protocol stats breakdown:', {
                     apr: apr.status === 'fulfilled' ? apr.value?.toString() : `Error: ${apr.reason}`,
                     currentRewardRate: currentRewardRate.status === 'fulfilled' ? currentRewardRate.value?.toString() : `Error: ${currentRewardRate.reason}`,
@@ -132,13 +126,11 @@ const useStaking = () => {
                     emergencyWithdrawPenalty: emergencyWithdrawPenalty.status === 'fulfilled' ? emergencyWithdrawPenalty.value?.toString() : `Error: ${emergencyWithdrawPenalty.reason}`,
                 });
 
-                // Log the specific deployment parameters you requested
                 console.log('Contract Deployment Parameters:', {
                     _aprReductionPerThousand: aprReductionPerThousand.status === 'fulfilled' ? aprReductionPerThousand.value?.toString() : 'Failed to fetch',
                     _emergencyWithdrawPenalty: emergencyWithdrawPenalty.status === 'fulfilled' ? emergencyWithdrawPenalty.value?.toString() : 'Failed to fetch'
                 });
 
-                // Debug total rewards calculation
                 console.log('Total Rewards Debug:', {
                     getTotalRewardsResult: totalRewards.status === 'fulfilled' ? totalRewards.value?.toString() : `Error: ${totalRewards.reason}`,
                     getTotalRewardsTokens: totalRewards.status === 'fulfilled' ? Number(totalRewards.value || 0n) / 1e18 : 0,
@@ -146,12 +138,10 @@ const useStaking = () => {
                     note: 'This should show cumulative rewards distributed to all users'
                 });
 
-                // Calculate initial total rewards (will be updated dynamically later)
                 const totalStakedAmount = Number(totalStaked.status === 'fulfilled' ? totalStaked.value || 0n : 0n);
                 const aprPercent = Number(apr.status === 'fulfilled' ? apr.value || 0n : 0n);
                 
-                // Use a default 1 hour for initial calculation
-                const defaultStakingTime = 3600; // 1 hour
+                const defaultStakingTime = 3600;
                 
                 const estimatedTotalRewards = totalStakedAmount > 0 && aprPercent > 0 
                     ? (totalStakedAmount * aprPercent * defaultStakingTime) / (365 * 24 * 60 * 60 * 100)
@@ -167,7 +157,6 @@ const useStaking = () => {
                     note: 'Initial calculation - will be updated dynamically'
                 });
 
-                // Use fallback calculation if contract's getTotalRewards returns 0
                 const contractTotalRewards = totalRewards.status === 'fulfilled' ? totalRewards.value || 0n : 0n;
                 const fallbackTotalRewards = contractTotalRewards === 0n && estimatedTotalRewards > 0 
                     ? BigInt(Math.floor(estimatedTotalRewards))
@@ -189,7 +178,6 @@ const useStaking = () => {
 
                 if (!address) return;
 
-                // Get user details from contract
                 const userDetails = await publicClient.readContract({
                     ...stakingContractConfig,
                     functionName: 'getUserDetails',
@@ -205,14 +193,12 @@ const useStaking = () => {
                     canWithdraw: userDetails?.canWithdraw
                 });
 
-                // Calculate expected rewards manually for comparison
                 const currentTimeForRewards = Math.floor(Date.now() / 1000);
                 const lastStakeTimeForRewards = Number(userDetails?.lastStakeTimestamp || 0);
                 const stakedAmount = Number(userDetails?.stakedAmount || 0n);
                 const timeSinceStakeForRewards = currentTimeForRewards - lastStakeTimeForRewards;
                 const aprValue = Number(apr.status === 'fulfilled' ? apr.value || 0n : 0n);
                 
-                // Manual reward calculation: (stakedAmount * APR * timeStaked) / (365 * 24 * 60 * 60 * 100)
                 const expectedRewards = stakedAmount > 0 && aprValue > 0 && timeSinceStakeForRewards > 0 
                     ? (stakedAmount * aprValue * timeSinceStakeForRewards) / (365 * 24 * 60 * 60 * 100)
                     : 0;
@@ -229,7 +215,6 @@ const useStaking = () => {
                     contractPendingRewards: Number(userDetails?.pendingRewards || 0n) / 1e18
                 });
 
-                // Also try calling getPendingRewards directly for comparison
                 try {
                     const directPendingRewards = await publicClient.readContract({
                         ...stakingContractConfig,
@@ -241,7 +226,6 @@ const useStaking = () => {
                     console.log('Direct pending rewards call failed:', pendingError);
                 }
 
-                // Try calling getTimeUntilUnlock directly from contract
                 let contractTimeUntilUnlock = 0;
                 try {
                     const directTimeUntilUnlock = await publicClient.readContract({
@@ -255,7 +239,6 @@ const useStaking = () => {
                     console.log('Direct getTimeUntilUnlock call failed:', timeError);
                 }
 
-                // Get token balance
                 const tokenBalance = await publicClient.readContract({
                     address: stakingTokenAddress || TOKEN_ADDRESS,
                     abi: erc20Abi,
@@ -263,7 +246,6 @@ const useStaking = () => {
                     args: [address],
                 });
 
-                // Get token allowance
                 const tokenAllowance = await publicClient.readContract({
                     address: stakingTokenAddress || TOKEN_ADDRESS,
                     abi: erc20Abi,
@@ -271,22 +253,18 @@ const useStaking = () => {
                     args: [address, stakingContractConfig.address],
                 });
 
-                // Calculate time since staking and proper timeUntilUnlock
                 const currentTime = Math.floor(Date.now() / 1000);
                 const lastStakeTime = Number(userDetails?.lastStakeTimestamp || 0);
                 const timeSinceStake = currentTime - lastStakeTime;
                 const minLockDurationSeconds = Number(minLockDuration.status === 'fulfilled' ? minLockDuration.value || 0n : 0n);
                 
-                // Calculate remaining lock time based on minLockDuration
                 const unlockTime = lastStakeTime + minLockDurationSeconds;
                 const timeUntilUnlockCalculated = Math.max(0, unlockTime - currentTime);
                 
-                // Use contract's direct calculation if our calculation seems wrong or if minLockDuration failed
                 const finalTimeUntilUnlock = (minLockDurationSeconds === 0 || contractTimeUntilUnlock > 0) 
                     ? contractTimeUntilUnlock 
                     : timeUntilUnlockCalculated;
                 
-                // Use contract's canWithdraw value as it's more reliable than our calculation
                 const canWithdrawFromContract = userDetails?.canWithdraw || false;
                 const canWithdrawCalculated = finalTimeUntilUnlock === 0 && Number(userDetails?.stakedAmount || 0n) > 0;
                 
@@ -328,7 +306,6 @@ const useStaking = () => {
             } catch (error) {
                 console.error('Error fetching contract data:', error);
                 
-                // Provide more specific error messages
                 let errorMessage = 'Failed to load contract data';
                 if (error.message) {
                     if (error.message.includes('network')) {
@@ -359,22 +336,22 @@ const useStaking = () => {
             eventName: 'Staked',
             onLogs: (logs) => {
                 logs.forEach((log) => {
-                    // Update protocol stats using newTotalStaked from contract event
+                   
                     setProtocolStats(prev => ({
                         ...prev,
                         totalStaked: log.args.newTotalStaked || (prev.totalStaked + log.args.amount),
                     }));
                     
-                    // Only show toast and update user data for current user
+                    
                     if (log.args.user?.toLowerCase() === address.toLowerCase()) {
                         toast.success('Staking successful!', {
-                            description: `Successfully staked ${formatEther(log.args.amount)} tokens`,
+                            description: `Successfully staked ${formatEther(log.args.amount)} STK`,
                         });
-                        // Refresh user data after staking event
+                        
                         setUserStakingData(prev => ({
                             ...prev,
                             stakedBalance: prev.stakedBalance + log.args.amount,
-                            canWithdraw: false, // Reset withdraw status after new stake
+                            canWithdraw: false,
                         }));
                     }
                 });
@@ -386,16 +363,14 @@ const useStaking = () => {
             eventName: 'Withdrawn',
             onLogs: (logs) => {
                 logs.forEach((log) => {
-                    // Update protocol stats using newTotalStaked from contract event
                     setProtocolStats(prev => ({
                         ...prev,
                         totalStaked: log.args.newTotalStaked || (prev.totalStaked - log.args.amount),
                     }));
                     
-                    // Only show toast and update user data for current user
                     if (log.args.user?.toLowerCase() === address.toLowerCase()) {
                         toast.success('Withdrawal successful!', {
-                            description: `Successfully withdrew ${formatEther(log.args.amount)} tokens with ${formatEther(log.args.rewardsAccrued || 0n)} rewards`,
+                            description: `Successfully withdrew ${formatEther(log.args.amount)} STK with ${formatEther(log.args.rewardsAccrued || 0n)} rewards`,
                         });
                         setUserStakingData(prev => ({
                             ...prev,
@@ -414,11 +389,11 @@ const useStaking = () => {
                 logs.forEach((log) => {
                     if (log.args.user?.toLowerCase() === address.toLowerCase()) {
                         toast.success('Rewards claimed!', {
-                            description: `Successfully claimed ${formatEther(log.args.amount)} tokens`,
+                            description: `Successfully claimed ${formatEther(log.args.amount)} STK`,
                         });
                         setUserStakingData(prev => ({
                             ...prev,
-                            pendingRewards: 0n, // Reset to 0 after claiming
+                            pendingRewards: 0n,
                         }));
                     }
                 });
@@ -430,17 +405,14 @@ const useStaking = () => {
             eventName: 'EmergencyWithdrawn',
             onLogs: (logs) => {
                 logs.forEach((log) => {
-                    // Update protocol stats using newTotalStaked from contract event (this is the correct total after withdrawal)
                     setProtocolStats(prev => ({
                         ...prev,
                         totalStaked: log.args.newTotalStaked,
-                        // Do NOT add penalty to total rewards - penalties are not rewards
                     }));
                     
-                    // Only show toast and update user data for current user
                     if (log.args.user?.toLowerCase() === address.toLowerCase()) {
                         toast.warning('Emergency withdrawal completed', {
-                            description: `Withdrew ${formatEther(log.args.amount)} tokens with ${formatEther(log.args.penalty || 0n)} penalty`,
+                            description: `Withdrew ${formatEther(log.args.amount)} STK with ${formatEther(log.args.penalty || 0n)} penalty`,
                         });
                         setUserStakingData(prev => ({
                             ...prev,
@@ -478,27 +450,23 @@ const useStaking = () => {
         };
     }, [address, publicClient]);
 
-    // Add periodic refresh for pending rewards and total rewards
     useEffect(() => {
         if (!address || !publicClient) return;
 
         const refreshUserData = async () => {
             try {
-                // Get updated user details
                 const userDetails = await publicClient.readContract({
                     ...stakingContractConfig,
                     functionName: 'getUserDetails',
                     args: [address],
                 });
 
-                // Get direct pending rewards
                 const directPendingRewards = await publicClient.readContract({
                     ...stakingContractConfig,
                     functionName: 'getPendingRewards',
                     args: [address],
                 });
 
-                // Get fresh protocol stats from contract
                 const [totalStakedResult, totalRewardsResult] = await Promise.allSettled([
                     publicClient.readContract({
                         ...stakingContractConfig,
@@ -520,13 +488,11 @@ const useStaking = () => {
                     timestamp: new Date().toLocaleTimeString()
                 });
 
-                // Update user staking data with fresh rewards
                 setUserStakingData(prev => ({
                     ...prev,
                     pendingRewards: directPendingRewards || userDetails?.pendingRewards || 0n,
                 }));
 
-                // Update protocol stats with fresh contract data
                 setProtocolStats(prev => ({
                     ...prev,
                     totalStaked: protocolTotalStaked,
@@ -538,7 +504,6 @@ const useStaking = () => {
             }
         };
 
-        // Refresh every 10 seconds
         const interval = setInterval(refreshUserData, 10000);
         setRefreshInterval(interval);
 
@@ -582,7 +547,6 @@ const useStaking = () => {
                 const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
                 if (receipt.status === 'success') {
-                    // Refresh allowance after successful approval
                     const newAllowance = await publicClient.readContract({
                         address: tokenAddress,
                         abi: erc20Abi,
@@ -596,7 +560,7 @@ const useStaking = () => {
                     }));
                     
                     toast.success('Token approval successful!', {
-                        description: 'You can now stake your tokens',
+                        description: 'You can now stake your STK',
                     });
                     return true;
                 } else {
@@ -605,7 +569,7 @@ const useStaking = () => {
                 }
             } catch (error) {
                 console.error('Approval error:', error);
-                toast.error('Failed to approve tokens', {
+                toast.error('Failed to approve STK', {
                     description: error.message || 'Transaction failed',
                 });
                 return false;
@@ -636,7 +600,7 @@ const useStaking = () => {
                 }
 
                 if (userStakingData.tokenAllowance && amountBigInt > userStakingData.tokenAllowance) {
-                    toast.error('Please approve tokens first');
+                    toast.error('Please approve STK first');
                     return false;
                 }
 
@@ -660,10 +624,9 @@ const useStaking = () => {
 
                 if (receipt.status === 'success') {
                     toast.success('Staking transaction confirmed!', {
-                        description: `Successfully staked ${amount} tokens`,
+                        description: `Successfully staked ${amount} STK`,
                     });
                     
-                    // Refresh user data after successful staking
                     setTimeout(async () => {
                         try {
                             const userDetails = await publicClient.readContract({
@@ -694,7 +657,6 @@ const useStaking = () => {
             } catch (error) {
                 console.error('Staking error:', error);
                 
-                // Check for specific error types
                 let errorMessage = 'Transaction failed';
                 if (error.message) {
                     if (error.message.includes('EnforcedPause')) {
@@ -712,7 +674,7 @@ const useStaking = () => {
                     }
                 }
                 
-                toast.error('Failed to stake tokens', {
+                toast.error('Failed to stake STK', {
                     description: errorMessage,
                 });
                 return false;
@@ -758,7 +720,7 @@ const useStaking = () => {
 
                 if (receipt.status === 'success') {
                     toast.success('Withdrawal initiated!', {
-                        description: `Withdrawing ${amount} tokens`,
+                        description: `Withdrawing ${amount} STK`,
                     });
                     return true;
                 } else {
@@ -767,7 +729,7 @@ const useStaking = () => {
                 }
             } catch (error) {
                 console.error('Withdrawal error:', error);
-                toast.error('Failed to withdraw tokens', {
+                toast.error('Failed to withdraw STK', {
                     description: error.message || 'Transaction failed',
                 });
                 return false;

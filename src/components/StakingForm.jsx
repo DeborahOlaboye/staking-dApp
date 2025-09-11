@@ -236,7 +236,7 @@ const StakingForm = ({
   return (
     <Card ref={formRef}>
       <CardHeader>
-        <CardTitle>Stake Tokens</CardTitle>
+        <CardTitle>Stake STK</CardTitle>
         <CardDescription>
           Enter amount to stake {lastSuccessfulStake && `(Last: ${lastSuccessfulStake})`}
         </CardDescription>
@@ -284,7 +284,7 @@ const StakingForm = ({
             <div className="mt-2 space-y-1">
               {tokenBalance && (
                 <p className="text-sm text-muted-foreground">
-                  Balance: {formattedBalance} tokens
+                  Balance: {formattedBalance} STK
                 </p>
               )}
               {errors.amount && (
@@ -312,7 +312,7 @@ const StakingForm = ({
                   ? 'Connect Wallet' 
                   : buttonState === 'approving' 
                     ? 'Approving...' 
-                    : 'Approve Tokens'
+                    : 'Approve STK'
                 }
               </Button>
             ) : (
@@ -325,7 +325,7 @@ const StakingForm = ({
                   ? 'Connect Wallet' 
                   : buttonState === 'staking' 
                     ? 'Staking...' 
-                    : 'Stake Tokens'
+                    : 'Stake STK'
                 }
               </Button>
             )}
@@ -336,7 +336,7 @@ const StakingForm = ({
             <div className="bg-green-50 border border-green-200 rounded-md p-3">
               <p className="text-sm text-green-700 flex items-center">
                 <span className="mr-2">✓</span>
-                Approved: {formattedAllowance} tokens
+                Approved: {formattedAllowance} STK
               </p>
             </div>
           )}

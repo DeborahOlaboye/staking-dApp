@@ -22,11 +22,11 @@ const ProtocolStats = ({ apr, totalStaked, totalRewards, currentRewardRate }) =>
         </div>
         <div className="text-center">
           <p className="text-sm text-muted-foreground">Total Staked</p>
-          <p className="text-2xl font-bold">{formatEther(totalStaked || 0n)} Tokens</p>
+          <p className="text-2xl font-bold">{formatEther(totalStaked || 0n)} STK</p>
         </div>
         <div className="text-center">
           <p className="text-sm text-muted-foreground">Total Rewards</p>
-          <p className="text-2xl font-bold">{formatEther(totalRewards || 0n)} Tokens</p>
+          <p className="text-2xl font-bold">{formatEther(totalRewards || 0n)} STK</p>
         </div>
       </CardContent>
     </Card>

@@ -15,13 +15,13 @@ const UserPosition = ({ isConnected, stakedBalance, pendingRewards, timeUntilUnl
         <div className="text-center">
           <p className="text-sm text-muted-foreground">Staked Balance</p>
           <p className="text-2xl font-bold">
-            {isConnected ? formatEther(stakedBalance || 0n) : '0.00'} Tokens
+            {isConnected ? formatEther(stakedBalance || 0n) : '0.00'} STK
           </p>
         </div>
         <div className="text-center">
           <p className="text-sm text-muted-foreground">Pending Rewards</p>
           <p className="text-2xl font-bold">
-            {isConnected ? formatEther(pendingRewards || 0n) : '0.00'} Tokens
+            {isConnected ? formatEther(pendingRewards || 0n) : '0.00'} STK
           </p>
         </div>
         <div className="text-center">
